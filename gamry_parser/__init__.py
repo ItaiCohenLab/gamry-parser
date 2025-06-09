@@ -6,3 +6,4 @@ from .eispot import Impedance
 from .ocp import OpenCircuitPotential
 from .squarewave import SquareWaveVoltammetry
 from .vfp600 import VFP600
+from .repeating_chronoa import RepeatingChronoAmperometry

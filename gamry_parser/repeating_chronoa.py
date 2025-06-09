@@ -1,44 +1,27 @@
 import gamry_parser as parser
+import pandas as pd
+import re
 
 
-class CyclicVoltammetry(parser.GamryParser):
-    """Load a Cyclic Voltammetry experiment generated in Gamry EXPLAIN format."""
+class RepeatingChronoAmperometry(parser.GamryParser):
+    """Load a ChronoAmperometry experiment generated in Gamry EXPLAIN format."""
 
-    @property
-    def v_range(self):
-        """retrieve the programmed voltage scan ranges
-
-        Args:
-            None
-
-        Returns:
-            tuple, containing:
-                float: voltage limit 1, in V
-                float: voltage limit 2, in V
-
-        """
-        assert self.loaded, "DTA file not loaded. Run CyclicVoltammetry.load()"
-        assert (
-            "VLIMIT1" in self._header.keys()
-        ), "DTA header file missing VLIMIT1 specification"
-        assert (
-            "VLIMIT2" in self._header.keys()
-        ), "DTA header file missing VLIMIT2 specification"
-
-        return self._header.get("VLIMIT1", None), self._header.get("VLIMIT2", None)
-
-    @property
-    def scan_rate(self):
-        """retrieve the programmed scan rate
+    def curve(self, curve: int = 0):
+        """retrieve chronoamperometry experiment data
 
         Args:
-            None
+            curve (int, optional): curve to return (CHRONOA experiments typically only have 1 curve). Defaults to 1.
 
         Returns:
-            float: the scan rate, in mV/s (returns None for unknown scan rates)
-
+            pandas.DataFrame:
+                - T: time, in seconds or Timestamp
+                - Vf: potential, in V
+                - Im: current, in A
         """
-        return self._header.get("SCANRATE", None)
+
+        assert self.loaded, "DTA file not loaded. Run ChronoAmperometry.load()"
+        df = self._curves[curve]
+        return df[["T", "Vf", "Im"]]
 
     @property
     def potentiostat(self):
@@ -64,7 +47,6 @@ class CyclicVoltammetry(parser.GamryParser):
         """
         return self._header.get("DATE", None)
 
-    @property
     def time(self):
         """retrieve the time of the experiment
 
@@ -75,6 +57,19 @@ class CyclicVoltammetry(parser.GamryParser):
             str: time of the experiment
         """
         return self._header.get("TIME", None)
+
+    @property
+    def sample_time(self):
+        """retrieve the programmed sample period
+
+        Args:
+            None.
+
+        Returns:
+            float: sample period of the potentiostat (in seconds)
+
+        """
+        return self._header.get("SAMPLETIME", None)
 
     @property
     def sample_count(self, curve: int = 0):
@@ -115,19 +110,7 @@ class CyclicVoltammetry(parser.GamryParser):
         return int(self._header.get("IERANGE", None))
 
     @property
-    def starting_potential(self):
-        """retrieve the starting potential for the experiment
-
-        Args:
-            None.
-
-        Returns:
-            float: starting potential (in V)
-        """
-        return self._header.get("VINIT", None)
-
-    @property
-    def vlimit1(self):
+    def vstep1(self):
         """retrieve the first step potential for the experiment
 
         Args:
@@ -136,10 +119,10 @@ class CyclicVoltammetry(parser.GamryParser):
         Returns:
             float: first step potential (in V)
         """
-        return self._header.get("VLIMIT1", None)
+        return self._header.get("VSTEP1", None)
 
     @property
-    def vlimit2(self):
+    def vstep2(self):
         """retrieve the second step potential for the experiment
 
         Args:
@@ -148,10 +131,10 @@ class CyclicVoltammetry(parser.GamryParser):
         Returns:
             float: second step potential (in V)
         """
-        return self._header.get("VLIMIT2", None)
+        return self._header.get("VSTEP2", None)
 
     @property
-    def vfinal(self):
+    def tstep1(self):
         """retrieve the first step time for the experiment
 
         Args:
@@ -160,19 +143,19 @@ class CyclicVoltammetry(parser.GamryParser):
         Returns:
             float: first step time (in seconds)
         """
-        return self._header.get("VFINAL", None)
+        return self._header.get("TSTEP1", None)
 
     @property
-    def step_size(self):
-        """retrieve the step size for the experiment
+    def tstep2(self):
+        """retrieve the second step time for the experiment
 
         Args:
             None.
 
         Returns:
-            float: step size (in V)
+            float: second step time (in seconds)
         """
-        return self._header.get("STEPSIZE", None)
+        return self._header.get("TSTEP2", None)
 
     @property
     def cycle_count(self):
@@ -221,26 +204,3 @@ class CyclicVoltammetry(parser.GamryParser):
             str: current convention (e.g., "POSITIVE", "NEGATIVE")
         """
         return self._header.get("CONVENTION", None)
-
-    def curve(self, curve: int = 0):
-        """retrieve relevant cyclic voltammetry experimental data
-
-        Args:
-            curve (int, optional): curve number to return. Defaults to 0.
-
-        Returns:
-            pandas.DataFrame:
-                - Vf: potential, in V
-                - Im: current, in A
-
-        """
-        assert self.loaded, "DTA file not loaded. Run CyclicVoltammetry.load()"
-        assert curve >= 0, "Invalid curve ({}). Indexing starts at 0".format(curve)
-        assert (
-            curve < self.curve_count
-        ), "Invalid curve ({}). File contains {} total curves.".format(
-            curve, self.curve_count
-        )
-        df = self._curves[curve]
-
-        return df[["Vf", "Im"]]
